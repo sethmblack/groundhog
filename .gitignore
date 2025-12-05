@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+*.js.map
+*.d.ts
+
+# CDK
+infrastructure/cdk.out/
+*.cdk.staging/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# AWS
+.aws-sam/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Secrets (never commit)
+*.pem
+*.key
+credentials.json
+secrets.json

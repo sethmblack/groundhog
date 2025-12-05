@@ -1,0 +1,83 @@
+{
+  "name": "groundhog",
+  "version": "1.0.0",
+  "description": "New Relic Dashboard Backup & Restore SaaS Platform",
+  "private": true,
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "turbo run build",
+    "build:lambda": "esbuild src/handlers/**/*.ts --bundle --platform=node --target=node20 --outdir=dist/handlers",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:integration": "vitest run --dir tests/integration",
+    "test:e2e": "playwright test",
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "lint:fix": "eslint src tests --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
+    "setup:local": "tsx scripts/setup-local-aws.ts",
+    "db:seed": "tsx scripts/seed-local-data.ts",
+    "db:reset": "tsx scripts/reset-local-db.ts",
+    "cdk": "cd infrastructure && pnpm cdk",
+    "cdk:synth": "cd infrastructure && pnpm cdk synth",
+    "cdk:deploy": "cd infrastructure && pnpm cdk deploy --all",
+    "cdk:diff": "cd infrastructure && pnpm cdk diff",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.490.0",
+    "@aws-sdk/client-dynamodb": "^3.490.0",
+    "@aws-sdk/client-s3": "^3.490.0",
+    "@aws-sdk/client-secrets-manager": "^3.490.0",
+    "@aws-sdk/client-ses": "^3.490.0",
+    "@aws-sdk/client-sns": "^3.490.0",
+    "@aws-sdk/client-sqs": "^3.490.0",
+    "@aws-sdk/lib-dynamodb": "^3.490.0",
+    "@aws-sdk/s3-request-presigner": "^3.490.0",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "fastify": "^4.25.2",
+    "jose": "^5.2.0",
+    "pino": "^8.17.2",
+    "stripe": "^14.12.0",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^8.3.1",
+    "@types/aws-lambda": "^8.10.131",
+    "@types/node": "^20.10.6",
+    "@types/uuid": "^9.0.7",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "esbuild": "^0.19.11",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-security": "^2.1.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "pino-pretty": "^10.3.1",
+    "prettier": "^3.2.2",
+    "supertest": "^6.3.4",
+    "tsx": "^4.7.0",
+    "turbo": "^1.11.3",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
+}

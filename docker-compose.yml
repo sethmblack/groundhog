@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  localstack:
+    image: localstack/localstack:3.0
+    container_name: groundhog-localstack
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      - SERVICES=dynamodb,s3,sqs,secretsmanager,ses,sns,events,cognito-idp
+      - DEBUG=1
+      - PERSISTENCE=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "./localstack-data:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: groundhog-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  mock-newrelic:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-newrelic
+    container_name: groundhog-mock-newrelic
+    ports:
+      - "3001:3001"
+    environment:
+      - MOCK_DATA_PATH=/app/mocks/data
+
+networks:
+  default:
+    name: groundhog-network
+
+volumes:
+  localstack-data:

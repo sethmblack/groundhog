@@ -1,0 +1,23 @@
+{
+  "name": "groundhog-infrastructure",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.120.0",
+    "constructs": "^10.3.0",
+    "cdk-nag": "^2.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "aws-cdk": "^2.120.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
