@@ -5,6 +5,7 @@ import { DataStack } from '../lib/stacks/data-stack';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { QueueStack } from '../lib/stacks/queue-stack';
 import { ApiStack } from '../lib/stacks/api-stack';
+import { FrontendStack } from '../lib/stacks/frontend-stack';
 import { getConfig, Environment } from '../lib/config/environments';
 
 const app = new cdk.App();
@@ -60,5 +61,17 @@ const apiStack = new ApiStack(app, `Groundhog-${config.environment}-Api`, {
 apiStack.addDependency(dataStack);
 apiStack.addDependency(authStack);
 apiStack.addDependency(queueStack);
+
+// Frontend Stack (S3 + CloudFront)
+const frontendStack = new FrontendStack(app, `Groundhog-${config.environment}-Frontend`, {
+  env,
+  config,
+  apiUrl: `https://${apiStack.api.restApiId}.execute-api.${config.region}.amazonaws.com/${config.environment}`,
+  userPoolId: authStack.userPool.userPoolId,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
+  description: 'Groundhog Frontend - S3 and CloudFront',
+});
+frontendStack.addDependency(apiStack);
+frontendStack.addDependency(authStack);
 
 app.synth();
