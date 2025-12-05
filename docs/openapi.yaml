@@ -1,0 +1,680 @@
+openapi: 3.0.3
+info:
+  title: Groundhog API
+  description: |
+    New Relic Dashboard Backup & Restore SaaS Platform API.
+
+    This API provides endpoints for managing organizations, API keys, dashboard backups, and restores.
+  version: 1.0.0
+  contact:
+    name: Groundhog Support
+  license:
+    name: MIT
+
+servers:
+  - url: https://eiro9ee621.execute-api.us-east-2.amazonaws.com/dev
+    description: Development server
+
+security:
+  - CognitoAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the API
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a new user account and organization
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - organizationName
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 12
+                organizationName:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already exists
+
+  /auth/login:
+    post:
+      summary: Login
+      description: Authenticates a user and returns tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me:
+    get:
+      summary: Get current user
+      description: Returns the currently authenticated user's profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /organizations:
+    get:
+      summary: List organizations
+      description: Returns all organizations the user belongs to
+      responses:
+        '200':
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+
+    post:
+      summary: Create organization
+      description: Creates a new organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                settings:
+                  $ref: '#/components/schemas/OrganizationSettings'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+
+  /organizations/{orgId}:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+
+    get:
+      summary: Get organization
+      description: Returns organization details
+      responses:
+        '200':
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update organization
+      description: Updates organization details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                settings:
+                  $ref: '#/components/schemas/OrganizationSettings'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+
+    delete:
+      summary: Delete organization
+      description: Deletes an organization and all associated data
+      responses:
+        '204':
+          description: Organization deleted
+
+  /organizations/{orgId}/api-keys:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+
+    get:
+      summary: List API keys
+      description: Returns all API keys for the organization
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+
+    post:
+      summary: Create API key
+      description: Creates a new New Relic API key for the organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - accountId
+                - apiKey
+              properties:
+                name:
+                  type: string
+                accountId:
+                  type: string
+                apiKey:
+                  type: string
+                  description: New Relic User API Key
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+
+  /organizations/{orgId}/api-keys/{keyId}:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+      - $ref: '#/components/parameters/KeyId'
+
+    get:
+      summary: Get API key
+      description: Returns API key details (key is masked)
+      responses:
+        '200':
+          description: API key details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+
+    delete:
+      summary: Delete API key
+      description: Deletes an API key
+      responses:
+        '204':
+          description: API key deleted
+
+  /organizations/{orgId}/api-keys/{keyId}/validate:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+      - $ref: '#/components/parameters/KeyId'
+
+    post:
+      summary: Validate API key
+      description: Validates the API key against New Relic
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  accounts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+
+  /organizations/{orgId}/dashboards:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+
+    get:
+      summary: List dashboards
+      description: Returns all dashboards discovered from connected New Relic accounts
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: string
+          description: Filter by account ID
+      responses:
+        '200':
+          description: List of dashboards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dashboard'
+
+  /organizations/{orgId}/dashboards/{guid}:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+      - $ref: '#/components/parameters/DashboardGuid'
+
+    get:
+      summary: Get dashboard
+      description: Returns dashboard details
+      responses:
+        '200':
+          description: Dashboard details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+
+  /organizations/{orgId}/dashboards/{guid}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+      - $ref: '#/components/parameters/DashboardGuid'
+
+    get:
+      summary: List dashboard versions
+      description: Returns all backup versions for a dashboard
+      responses:
+        '200':
+          description: List of versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupSnapshot'
+
+  /organizations/{orgId}/dashboards/{guid}/restore:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+      - $ref: '#/components/parameters/DashboardGuid'
+
+    post:
+      summary: Restore dashboard
+      description: Restores a dashboard from a specific backup version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - snapshotId
+              properties:
+                snapshotId:
+                  type: string
+                targetAccountId:
+                  type: string
+                  description: Optional target account for cross-account restore
+      responses:
+        '202':
+          description: Restore job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [QUEUED]
+
+  /organizations/{orgId}/backup/trigger:
+    parameters:
+      - $ref: '#/components/parameters/OrgId'
+
+    post:
+      summary: Trigger backup
+      description: Triggers an immediate backup of specified dashboards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dashboardGuids:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional list of dashboard GUIDs. If empty, backs up all dashboards.
+      responses:
+        '202':
+          description: Backup job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [QUEUED]
+
+  /webhooks/stripe:
+    post:
+      summary: Stripe webhook
+      description: Handles Stripe webhook events
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: AWS Cognito JWT token
+
+  parameters:
+    OrgId:
+      name: orgId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Organization ID
+
+    KeyId:
+      name: keyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: API Key ID
+
+    DashboardGuid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+      description: New Relic Dashboard GUID
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        organizationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ownerId:
+          type: string
+          format: uuid
+        settings:
+          $ref: '#/components/schemas/OrganizationSettings'
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrganizationSettings:
+      type: object
+      properties:
+        backupFrequency:
+          type: string
+          enum: [HOURLY, DAILY, WEEKLY]
+          default: DAILY
+        retentionDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 30
+        notificationEmail:
+          type: string
+          format: email
+        webhookUrl:
+          type: string
+          format: uri
+
+    Subscription:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [FREE, PRO, ENTERPRISE]
+        status:
+          type: string
+          enum: [ACTIVE, PAST_DUE, CANCELLED]
+        stripeCustomerId:
+          type: string
+        stripeSubscriptionId:
+          type: string
+        currentPeriodEnd:
+          type: string
+          format: date-time
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        accountId:
+          type: string
+        maskedKey:
+          type: string
+          description: Masked API key (last 4 characters visible)
+        status:
+          type: string
+          enum: [ACTIVE, INVALID, EXPIRED]
+        lastValidated:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Dashboard:
+      type: object
+      properties:
+        guid:
+          type: string
+        name:
+          type: string
+        accountId:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        permissions:
+          type: string
+          enum: [PUBLIC_READ_ONLY, PUBLIC_READ_WRITE, PRIVATE]
+        pageCount:
+          type: integer
+        lastBackup:
+          type: string
+          format: date-time
+        backupCount:
+          type: integer
+
+    BackupSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboardGuid:
+          type: string
+        dashboardName:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+        s3Key:
+          type: string
+        sizeBytes:
+          type: integer
+        checksum:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          properties:
+            pageCount:
+              type: integer
+            widgetCount:
+              type: integer
+            triggeredBy:
+              type: string
+              enum: [MANUAL, SCHEDULED]
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Unauthorized
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Not Found
+              message:
+                type: string

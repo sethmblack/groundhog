@@ -136,68 +136,21 @@ export class ApiStack extends cdk.Stack {
       },
     });
 
-    // Lambda Integration
-    const lambdaIntegration = new apigateway.LambdaIntegration(this.apiHandler);
+    // Lambda Integration with proxy
+    const lambdaIntegration = new apigateway.LambdaIntegration(this.apiHandler, {
+      proxy: true,
+    });
 
-    // Health check (public)
-    const health = this.api.root.addResource('health');
-    health.addMethod('GET', lambdaIntegration);
-
-    // Auth endpoints (public)
-    const auth = this.api.root.addResource('auth');
-    auth.addResource('login').addMethod('POST', lambdaIntegration);
-    auth.addResource('register').addMethod('POST', lambdaIntegration);
-    auth.addResource('refresh').addMethod('POST', lambdaIntegration);
-    auth.addResource('forgot-password').addMethod('POST', lambdaIntegration);
-    auth.addResource('reset-password').addMethod('POST', lambdaIntegration);
-
-    // Protected endpoints
-    const methodOptions: apigateway.MethodOptions = {
+    // Use a single proxy route to avoid Lambda permission policy size limits
+    // The Lambda handles all routing internally
+    const proxyResource = this.api.root.addResource('{proxy+}');
+    proxyResource.addMethod('ANY', lambdaIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
-    };
+    });
 
-    // Users
-    const users = this.api.root.addResource('users');
-    users.addResource('me').addMethod('GET', lambdaIntegration, methodOptions);
-
-    // Organizations
-    const organizations = this.api.root.addResource('organizations');
-    organizations.addMethod('GET', lambdaIntegration, methodOptions);
-    organizations.addMethod('POST', lambdaIntegration, methodOptions);
-
-    const org = organizations.addResource('{orgId}');
-    org.addMethod('GET', lambdaIntegration, methodOptions);
-    org.addMethod('PUT', lambdaIntegration, methodOptions);
-    org.addMethod('DELETE', lambdaIntegration, methodOptions);
-
-    // API Keys
-    const apiKeys = org.addResource('api-keys');
-    apiKeys.addMethod('GET', lambdaIntegration, methodOptions);
-    apiKeys.addMethod('POST', lambdaIntegration, methodOptions);
-
-    const apiKey = apiKeys.addResource('{keyId}');
-    apiKey.addMethod('GET', lambdaIntegration, methodOptions);
-    apiKey.addMethod('PUT', lambdaIntegration, methodOptions);
-    apiKey.addMethod('DELETE', lambdaIntegration, methodOptions);
-    apiKey.addResource('validate').addMethod('POST', lambdaIntegration, methodOptions);
-
-    // Dashboards
-    const dashboards = org.addResource('dashboards');
-    dashboards.addMethod('GET', lambdaIntegration, methodOptions);
-
-    const dashboard = dashboards.addResource('{guid}');
-    dashboard.addMethod('GET', lambdaIntegration, methodOptions);
-    dashboard.addResource('versions').addMethod('GET', lambdaIntegration, methodOptions);
-    dashboard.addResource('restore').addMethod('POST', lambdaIntegration, methodOptions);
-
-    // Backup
-    const backup = org.addResource('backup');
-    backup.addResource('trigger').addMethod('POST', lambdaIntegration, methodOptions);
-
-    // Webhooks (public with signature verification)
-    const webhooks = this.api.root.addResource('webhooks');
-    webhooks.addResource('stripe').addMethod('POST', lambdaIntegration);
+    // Root endpoint for health checks (public)
+    this.api.root.addMethod('GET', lambdaIntegration);
 
     // Outputs
     new cdk.CfnOutput(this, 'ApiUrl', {
