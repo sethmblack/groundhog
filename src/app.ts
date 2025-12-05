@@ -18,6 +18,7 @@ import { registerApiKeyRoutes } from '@/handlers/api/apikeys';
 import { registerDashboardRoutes } from '@/handlers/api/dashboards';
 import { registerRestoreRoutes } from '@/handlers/api/restore';
 import { registerBillingRoutes } from '@/handlers/api/billing';
+import { registerReportRoutes } from '@/handlers/api/reports';
 
 // Services & Repositories
 import { AuthService } from '@/services/auth-service';
@@ -26,6 +27,8 @@ import { ApiKeyService } from '@/services/apikey-service';
 import { BackupService } from '@/services/backup-service';
 import { RestoreService } from '@/services/restore-service';
 import { BillingService } from '@/services/billing-service';
+import { ReportingService } from '@/services/reporting-service';
+import { AuditRepository } from '@/repositories/audit-repository';
 import { UserRepository } from '@/repositories/user-repository';
 import { OrganizationRepository } from '@/repositories/organization-repository';
 import { ApiKeyRepository } from '@/repositories/apikey-repository';
@@ -183,6 +186,13 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const backupService = new BackupService(backupRepository, apiKeyService, apiKeyRepository);
   const restoreService = new RestoreService(backupService, apiKeyService, backupRepository, apiKeyRepository);
   const billingService = new BillingService(orgRepository);
+  const auditRepository = new AuditRepository();
+  const reportingService = new ReportingService(
+    backupRepository,
+    auditRepository,
+    apiKeyRepository,
+    orgRepository
+  );
 
   // Register routes
   registerHealthRoutes(app);
@@ -193,6 +203,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   registerDashboardRoutes(app, backupService, apiKeyService);
   registerRestoreRoutes(app, restoreService);
   registerBillingRoutes(app, billingService);
+  registerReportRoutes(app, reportingService);
 
   return app;
 }
