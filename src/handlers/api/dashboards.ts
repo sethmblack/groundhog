@@ -113,9 +113,10 @@ export function registerDashboardRoutes(
     preHandler: [app.authenticate, requireOrg() as never],
     handler: async (request: FastifyRequest, reply: FastifyReply) => {
       const { orgId } = request.params as { orgId: string };
+      const { search } = request.query as { search?: string };
       const pagination = PaginationSchema.parse(request.query);
 
-      const result = await backupService.listBackupsByOrg(orgId, pagination);
+      const result = await backupService.listBackupsByOrg(orgId, pagination, search);
 
       return reply.send(result);
     },

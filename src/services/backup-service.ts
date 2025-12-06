@@ -226,25 +226,45 @@ export class BackupService {
 
   async listBackupsByOrg(
     orgId: string,
-    pagination: Pagination
+    pagination: Pagination,
+    search?: string
   ): Promise<PaginatedResponse<Backup>> {
-    const allBackups = await this.backupRepository.listByOrg(orgId, 1000);
+    // If search is provided, we need to scan and filter (slower but necessary)
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      // Fetch more items to filter through, but limit to reasonable amount
+      const allBackups = await this.backupRepository.listByOrg(orgId, 1000);
+      const filtered = allBackups.filter(
+        (backup) =>
+          backup.dashboardName.toLowerCase().includes(searchLower) ||
+          backup.dashboardGuid.toLowerCase().includes(searchLower)
+      );
 
-    const start = (pagination.page - 1) * pagination.limit;
-    const end = start + pagination.limit;
-    const paginatedBackups = allBackups.slice(start, end);
+      const start = (pagination.page - 1) * pagination.limit;
+      const end = start + pagination.limit;
+      const paginatedBackups = filtered.slice(start, end);
 
-    return {
-      data: paginatedBackups,
-      pagination: {
-        page: pagination.page,
-        limit: pagination.limit,
-        total: allBackups.length,
-        totalPages: Math.ceil(allBackups.length / pagination.limit),
-        hasNext: end < allBackups.length,
-        hasPrev: pagination.page > 1,
-      },
-    };
+      return {
+        data: paginatedBackups,
+        pagination: {
+          page: pagination.page,
+          limit: pagination.limit,
+          total: filtered.length,
+          totalPages: Math.ceil(filtered.length / pagination.limit),
+          hasNext: end < filtered.length,
+          hasPrev: pagination.page > 1,
+        },
+      };
+    }
+
+    // No search - use efficient DynamoDB pagination
+    const result = await this.backupRepository.listByOrgPaginated(
+      orgId,
+      pagination.page,
+      pagination.limit
+    );
+
+    return result;
   }
 
   async getStorageStats(orgId: string): Promise<{
