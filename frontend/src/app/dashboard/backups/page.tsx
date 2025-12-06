@@ -153,20 +153,28 @@ function BackupsContent() {
     setShowBackupModal(true);
   };
 
-  const handleBackupNow = async () => {
+  const handleBackupNow = () => {
     if (!currentOrg || !selectedApiKeyId) return;
 
-    setBackupInProgress(true);
-    try {
-      const result = await triggerBackup(currentOrg.orgId, selectedApiKeyId);
-      setShowBackupModal(false);
-      alert(`Backup completed! ${result.resultsCount} dashboard(s) backed up.`);
-      await fetchBackups();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to trigger backup');
-    } finally {
-      setBackupInProgress(false);
-    }
+    // Close modal immediately and show notification
+    setShowBackupModal(false);
+    alert('Backup started! This may take several minutes. Refresh the page to see new backups.');
+
+    // Fire and forget - don't block UI
+    triggerBackup(currentOrg.orgId, selectedApiKeyId)
+      .then((result) => {
+        alert(`Backup completed! ${result.resultsCount} dashboard(s) backed up.`);
+        fetchBackups();
+      })
+      .catch((err) => {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
+          // Timeout is expected for large backups - they continue running
+          console.log('Backup request timed out, but backup continues in background');
+        } else {
+          alert(`Backup error: ${errorMessage}`);
+        }
+      });
   };
 
   const handleView = async (backup: BackupSnapshot) => {
