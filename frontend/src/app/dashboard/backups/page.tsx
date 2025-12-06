@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/context/AuthContext';
@@ -41,6 +41,12 @@ function BackupsContent() {
   const [viewingBackup, setViewingBackup] = useState<BackupSnapshot | null>(null);
   const [backupContent, setBackupContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
+
+  // Sort state
+  type SortField = 'dashboardName' | 'createdAt' | 'sizeBytes';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Debounce search input
   useEffect(() => {
@@ -161,6 +167,53 @@ function BackupsContent() {
   const goToPage = (page: number) => {
     if (page < 1 || (backupsResponse && page > backupsResponse.pagination.totalPages)) return;
     setCurrentPage(page);
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const sortedBackups = useMemo(() => {
+    const backups = backupsResponse?.data || [];
+    return [...backups].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'dashboardName':
+          comparison = a.dashboardName.localeCompare(b.dashboardName);
+          break;
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case 'sizeBytes':
+          comparison = a.sizeBytes - b.sizeBytes;
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [backupsResponse?.data, sortField, sortDirection]);
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-4 h-4 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    return sortDirection === 'asc' ? (
+      <svg className="w-4 h-4 ml-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 ml-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
   };
 
   if (authLoading || orgLoading) {
@@ -291,14 +344,32 @@ function BackupsContent() {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Dashboard
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort('dashboardName')}
+                  >
+                    <div className="flex items-center">
+                      Dashboard
+                      <SortIcon field="dashboardName" />
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Created
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    <div className="flex items-center">
+                      Created
+                      <SortIcon field="createdAt" />
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Size
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort('sizeBytes')}
+                  >
+                    <div className="flex items-center">
+                      Size
+                      <SortIcon field="sizeBytes" />
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                     Status
@@ -309,7 +380,7 @@ function BackupsContent() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {backups.map((backup) => (
+                {sortedBackups.map((backup) => (
                   <tr key={backup.id}>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">
