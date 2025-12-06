@@ -122,6 +122,7 @@ export interface BackupSnapshot {
   sizeBytes: number;
   checksum: string;
   createdAt: string;
+  updatedAt?: string; // Last updated in New Relic
   metadata: {
     pageCount: number;
     widgetCount: number;
@@ -351,6 +352,7 @@ export async function getBackupsPaginated(
     sizeBytes: b.sizeBytes,
     checksum: b.checksum,
     createdAt: b.backupTimestamp,
+    updatedAt: b.dashboardUpdatedAt,
     metadata: {
       pageCount: 0,
       widgetCount: 0,

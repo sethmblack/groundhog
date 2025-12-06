@@ -43,9 +43,9 @@ function BackupsContent() {
   const [loadingContent, setLoadingContent] = useState(false);
 
   // Sort state
-  type SortField = 'dashboardName' | 'createdAt' | 'sizeBytes';
+  type SortField = 'dashboardName' | 'updatedAt' | 'sizeBytes';
   type SortDirection = 'asc' | 'desc';
-  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Debounce search input
@@ -186,8 +186,11 @@ function BackupsContent() {
         case 'dashboardName':
           comparison = a.dashboardName.localeCompare(b.dashboardName);
           break;
-        case 'createdAt':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'updatedAt':
+          // Use updatedAt if available, fallback to createdAt
+          const aDate = a.updatedAt || a.createdAt;
+          const bDate = b.updatedAt || b.createdAt;
+          comparison = new Date(aDate).getTime() - new Date(bDate).getTime();
           break;
         case 'sizeBytes':
           comparison = a.sizeBytes - b.sizeBytes;
@@ -355,11 +358,11 @@ function BackupsContent() {
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort('createdAt')}
+                    onClick={() => handleSort('updatedAt')}
                   >
                     <div className="flex items-center">
-                      Created
-                      <SortIcon field="createdAt" />
+                      Last Updated
+                      <SortIcon field="updatedAt" />
                     </div>
                   </th>
                   <th
@@ -392,10 +395,10 @@ function BackupsContent() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white">
-                        {new Date(backup.createdAt).toLocaleDateString()}
+                        {new Date(backup.updatedAt || backup.createdAt).toLocaleDateString()}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(backup.createdAt).toLocaleTimeString()}
+                        {new Date(backup.updatedAt || backup.createdAt).toLocaleTimeString()}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -494,7 +497,7 @@ function BackupsContent() {
                   {selectedBackup.dashboardName}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  From {new Date(selectedBackup.createdAt).toLocaleString()}
+                  Last updated: {new Date(selectedBackup.updatedAt || selectedBackup.createdAt).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -572,7 +575,7 @@ function BackupsContent() {
                 {viewingBackup.dashboardName}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {new Date(viewingBackup.createdAt).toLocaleString()} | {formatBytes(viewingBackup.sizeBytes)}
+                Last updated: {new Date(viewingBackup.updatedAt || viewingBackup.createdAt).toLocaleString()} | {formatBytes(viewingBackup.sizeBytes)}
               </p>
             </div>
 
