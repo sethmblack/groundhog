@@ -268,11 +268,12 @@ export async function getDashboardVersions(orgId: string, guid: string): Promise
 // Backups
 export async function triggerBackup(
   orgId: string,
-  dashboardGuids?: string[]
-): Promise<{ jobId: string; status: string }> {
+  apiKeyId: string,
+  accountId?: string
+): Promise<{ message: string; resultsCount: number; results: unknown[] }> {
   return apiRequest(`/organizations/${orgId}/backup/trigger`, {
     method: 'POST',
-    body: JSON.stringify({ dashboardGuids }),
+    body: JSON.stringify({ apiKeyId, accountId }),
   });
 }
 

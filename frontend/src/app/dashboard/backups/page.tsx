@@ -7,10 +7,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useOrg } from '@/context/OrgContext';
 import {
   BackupSnapshot,
+  ApiKey,
   getBackupsPaginated,
   getBackupContent,
   restoreDashboard,
   triggerBackup,
+  getApiKeys,
   PaginatedBackupResponse,
 } from '@/lib/api-client';
 
@@ -41,6 +43,12 @@ function BackupsContent() {
   const [viewingBackup, setViewingBackup] = useState<BackupSnapshot | null>(null);
   const [backupContent, setBackupContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
+
+  // Backup now modal state
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [selectedApiKeyId, setSelectedApiKeyId] = useState('');
+  const [backupInProgress, setBackupInProgress] = useState(false);
 
   // Sort state
   type SortField = 'dashboardName' | 'updatedAt' | 'sizeBytes';
@@ -95,6 +103,15 @@ function BackupsContent() {
   useEffect(() => {
     if (currentOrg) {
       fetchBackups();
+      // Fetch API keys for backup modal
+      getApiKeys(currentOrg.orgId)
+        .then((keys) => {
+          setApiKeys(keys);
+          if (keys.length > 0) {
+            setSelectedApiKeyId(keys[0].apiKeyId);
+          }
+        })
+        .catch((err) => console.error('Failed to fetch API keys:', err));
     }
   }, [currentOrg, fetchBackups]);
 
@@ -127,15 +144,28 @@ function BackupsContent() {
     }
   };
 
-  const handleBackupNow = async () => {
-    if (!currentOrg) return;
+  const handleBackupNowClick = () => {
+    if (apiKeys.length === 0) {
+      alert('No API keys configured. Please add an API key first.');
+      router.push('/dashboard/apikeys');
+      return;
+    }
+    setShowBackupModal(true);
+  };
 
+  const handleBackupNow = async () => {
+    if (!currentOrg || !selectedApiKeyId) return;
+
+    setBackupInProgress(true);
     try {
-      await triggerBackup(currentOrg.orgId);
-      alert('Backup triggered successfully!');
+      const result = await triggerBackup(currentOrg.orgId, selectedApiKeyId);
+      setShowBackupModal(false);
+      alert(`Backup completed! ${result.resultsCount} dashboard(s) backed up.`);
       await fetchBackups();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to trigger backup');
+    } finally {
+      setBackupInProgress(false);
     }
   };
 
@@ -253,7 +283,7 @@ function BackupsContent() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Backups</h1>
         <button
-          onClick={handleBackupNow}
+          onClick={handleBackupNowClick}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
         >
           Backup Now
@@ -609,6 +639,58 @@ function BackupsContent() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Backup Now Modal */}
+      {showBackupModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Backup Dashboards
+            </h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Select API Key
+              </label>
+              <select
+                value={selectedApiKeyId}
+                onChange={(e) => setSelectedApiKeyId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {apiKeys.map((key) => (
+                  <option key={key.apiKeyId} value={key.apiKeyId}>
+                    {key.name} ({key.newRelicAccountIds.length} account{key.newRelicAccountIds.length !== 1 ? 's' : ''})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                All dashboards accessible by this API key will be backed up.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowBackupModal(false)}
+                disabled={backupInProgress}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBackupNow}
+                disabled={backupInProgress || !selectedApiKeyId}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+              >
+                {backupInProgress && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                )}
+                {backupInProgress ? 'Backing up...' : 'Start Backup'}
               </button>
             </div>
           </div>

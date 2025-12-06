@@ -118,25 +118,22 @@ export default function DashboardPage() {
   };
 
   const handleBackupSingle = async (dashboardGuid: string) => {
-    if (!currentOrg) return;
-    setBackingUp(dashboardGuid);
-    try {
-      await triggerBackup(currentOrg.orgId, [dashboardGuid]);
-      alert('Backup triggered successfully! It will appear in your backups shortly.');
-      await fetchData();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to trigger backup');
-    } finally {
-      setBackingUp(null);
-    }
+    // Redirect to backups page for backup functionality
+    router.push('/dashboard/backups');
   };
 
   const handleBackupAll = async () => {
     if (!currentOrg) return;
+    if (apiKeys.length === 0) {
+      alert('No API keys configured. Please add an API key first.');
+      router.push('/dashboard/apikeys');
+      return;
+    }
     setBackingUpAll(true);
     try {
-      await triggerBackup(currentOrg.orgId);
-      alert('Backup triggered for all dashboards! They will appear in your backups shortly.');
+      // Use the first available API key
+      const result = await triggerBackup(currentOrg.orgId, apiKeys[0].apiKeyId);
+      alert(`Backup completed! ${result.resultsCount} dashboard(s) backed up.`);
       await fetchData();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to trigger backup');
