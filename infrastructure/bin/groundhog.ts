@@ -54,8 +54,10 @@ const apiStack = new ApiStack(app, `Groundhog-${config.environment}-Api`, {
   table: dataStack.table,
   backupBucket: dataStack.backupBucket,
   userPool: authStack.userPool,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
   backupQueue: queueStack.backupQueue,
   notificationQueue: queueStack.notificationQueue,
+  encryptionKey: dataStack.encryptionKey,
   description: 'Groundhog API - API Gateway and Lambda',
 });
 apiStack.addDependency(dataStack);

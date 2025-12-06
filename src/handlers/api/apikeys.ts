@@ -1,10 +1,17 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { v4 as uuid } from 'uuid';
 import { ApiKeyService } from '@/services/apikey-service';
 import { OrganizationService } from '@/services/organization-service';
+import { BackupService } from '@/services/backup-service';
 import { requireOrg, requireAdmin } from '@/middleware/auth';
 import { BadRequestError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import { PaginationSchema } from '@/types';
+
+const sqsClient = new SQSClient({});
+const BACKUP_QUEUE_URL = process.env['BACKUP_QUEUE_URL'];
 
 const CreateApiKeySchema = z.object({
   name: z.string().min(1).max(100),
@@ -19,7 +26,8 @@ const UpdateApiKeySchema = z.object({
 export function registerApiKeyRoutes(
   app: FastifyInstance,
   apiKeyService: ApiKeyService,
-  orgService: OrganizationService
+  orgService: OrganizationService,
+  backupService: BackupService
 ): void {
   // GET /organizations/:orgId/api-keys - List API keys
   app.get('/organizations/:orgId/api-keys', {
@@ -65,6 +73,36 @@ export function registerApiKeyRoutes(
         },
         org.subscriptionTier
       );
+
+      // Queue initial backup via SQS (async processing)
+      if (BACKUP_QUEUE_URL) {
+        const backupMessage = {
+          type: 'BACKUP_ALL',
+          orgId,
+          apiKeyId: apiKey.apiKeyId,
+          requestId: uuid(),
+          timestamp: new Date().toISOString(),
+        };
+
+        try {
+          await sqsClient.send(new SendMessageCommand({
+            QueueUrl: BACKUP_QUEUE_URL,
+            MessageBody: JSON.stringify(backupMessage),
+          }));
+          logger.info(
+            { orgId, apiKeyId: apiKey.apiKeyId, requestId: backupMessage.requestId },
+            'Initial backup queued'
+          );
+        } catch (sqsError) {
+          // Don't fail API key creation if SQS fails
+          logger.error(
+            { error: sqsError, orgId, apiKeyId: apiKey.apiKeyId },
+            'Failed to queue initial backup'
+          );
+        }
+      } else {
+        logger.warn({ orgId, apiKeyId: apiKey.apiKeyId }, 'BACKUP_QUEUE_URL not configured');
+      }
 
       // Mask secret ARN in response
       return reply.status(201).send({

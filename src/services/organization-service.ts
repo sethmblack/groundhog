@@ -31,10 +31,20 @@ export class OrganizationService {
   }
 
   async create(input: CreateOrganizationInput): Promise<Organization> {
-    // Verify user exists
-    const user = await this.userRepository.findById(input.createdBy);
+    // Check if user exists, auto-create if not (for first-time Cognito users)
+    let user = await this.userRepository.findById(input.createdBy);
     if (!user) {
-      throw new NotFoundError('User not found');
+      if (!input.createdByEmail) {
+        throw new NotFoundError('User not found and no email provided for auto-creation');
+      }
+      logger.info(
+        { userId: input.createdBy, email: input.createdByEmail },
+        'Auto-creating user record for Cognito user'
+      );
+      user = await this.userRepository.create({
+        email: input.createdByEmail,
+        cognitoSub: input.createdBy,
+      });
     }
 
     const organization = await this.orgRepository.create(input);

@@ -3,6 +3,14 @@ import { verifyToken, extractBearerToken, JwtConfig } from '@/lib/jwt';
 import { RequestContext, OrgContext, Role } from '@/types';
 import { UnauthorizedError, ForbiddenError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import { OrganizationRepository } from '@/repositories/organization-repository';
+
+// Module-level reference to org repository for DynamoDB lookups
+let orgRepository: OrganizationRepository | null = null;
+
+export function setOrgRepository(repo: OrganizationRepository): void {
+  orgRepository = repo;
+}
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -54,7 +62,23 @@ export function requireOrg(
       throw new ForbiddenError('Organization ID required');
     }
 
-    const membership = request.ctx.orgs.find((o) => o.orgId === orgId);
+    // First check JWT claims for membership
+    let membership = request.ctx.orgs.find((o) => o.orgId === orgId);
+
+    // If not in JWT claims, query DynamoDB as fallback
+    if (!membership && orgRepository) {
+      logger.debug(
+        { userId: request.ctx.userId, orgId },
+        'Membership not in JWT, checking DynamoDB'
+      );
+      const dbMembership = await orgRepository.getMembership(request.ctx.userId, orgId);
+      if (dbMembership) {
+        membership = { orgId: dbMembership.orgId, role: dbMembership.role };
+        // Add to ctx.orgs for future checks in this request
+        request.ctx.orgs.push(membership);
+      }
+    }
+
     if (!membership) {
       throw new ForbiddenError('Not a member of this organization');
     }

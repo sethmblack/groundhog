@@ -20,6 +20,7 @@ import { NotFoundError, ConflictError } from '@/lib/errors';
 export interface CreateOrganizationInput {
   name: string;
   createdBy: string;
+  createdByEmail?: string;
   subscriptionTier?: SubscriptionTier;
 }
 

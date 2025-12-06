@@ -6,7 +6,7 @@ import { v4 as uuid } from 'uuid';
 
 import { logger } from '@/lib/logger';
 import { AppError, isAppError, InternalError } from '@/lib/errors';
-import { registerAuthHooks, createAuthMiddleware } from '@/middleware/auth';
+import { registerAuthHooks, setOrgRepository } from '@/middleware/auth';
 import { JwtConfig } from '@/lib/jwt';
 
 // Handlers
@@ -156,14 +156,16 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     region: config.cognito.region,
   };
 
-  // Register auth hooks and middleware
+  // Register auth hooks and middleware (this also decorates 'authenticate')
   registerAuthHooks(app, jwtConfig);
-  app.decorate('authenticate', createAuthMiddleware(jwtConfig));
 
   // Initialize repositories
   const userRepository = new UserRepository();
   const orgRepository = new OrganizationRepository();
   const apiKeyRepository = new ApiKeyRepository();
+
+  // Set org repository for auth middleware DynamoDB lookups
+  setOrgRepository(orgRepository);
 
   // Initialize services
   const authService = new AuthService(
@@ -199,7 +201,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   registerAuthRoutes(app, authService);
   registerUserRoutes(app, userRepository);
   registerOrganizationRoutes(app, orgService);
-  registerApiKeyRoutes(app, apiKeyService, orgService);
+  registerApiKeyRoutes(app, apiKeyService, orgService, backupService);
   registerDashboardRoutes(app, backupService, apiKeyService);
   registerRestoreRoutes(app, restoreService);
   registerBillingRoutes(app, billingService);

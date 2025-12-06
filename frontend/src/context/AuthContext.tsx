@@ -50,6 +50,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
+    // Check if already signed in first
+    try {
+      const currentUser = await getCurrentUser();
+      if (currentUser) {
+        // Already signed in, just update state
+        setUser({
+          userId: currentUser.userId,
+          email: currentUser.signInDetails?.loginId || email,
+        });
+        return;
+      }
+    } catch {
+      // Not signed in, proceed with sign in
+    }
+
     const result = await amplifySignIn({ username: email, password });
     if (result.isSignedIn) {
       await checkUser();

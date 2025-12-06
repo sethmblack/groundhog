@@ -50,6 +50,7 @@ export function registerOrganizationRoutes(
       const org = await orgService.create({
         name: validation.data.name,
         createdBy: request.ctx!.userId,
+        createdByEmail: request.ctx!.email,
       });
 
       return reply.status(201).send(org);

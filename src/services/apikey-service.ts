@@ -61,7 +61,8 @@ export class ApiKeyService {
     const validation = await client.validateApiKey();
 
     if (!validation.valid) {
-      throw new BadRequestError('Invalid New Relic API key');
+      const errorDetail = validation.error ? `: ${validation.error}` : '';
+      throw new BadRequestError(`Invalid New Relic API key${errorDetail}`);
     }
 
     if (validation.accounts.length === 0) {

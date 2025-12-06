@@ -97,7 +97,7 @@ export class NewRelicClient {
     }
   }
 
-  async validateApiKey(): Promise<{ valid: boolean; accounts: NewRelicAccount[] }> {
+  async validateApiKey(): Promise<{ valid: boolean; accounts: NewRelicAccount[]; error?: string }> {
     const query = `
       {
         actor {
@@ -123,17 +123,20 @@ export class NewRelicClient {
 
       return { valid: true, accounts };
     } catch (error) {
-      logger.warn({ error }, 'API key validation failed');
-      return { valid: false, accounts: [] };
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.warn({ error, errorMessage }, 'API key validation failed');
+      return { valid: false, accounts: [], error: errorMessage };
     }
   }
 
   async listDashboards(accountId: string): Promise<Dashboard[]> {
+    // Note: entitySearch query string doesn't support variable interpolation,
+    // so we embed the accountId directly in the query string
     const query = `
-      query ($accountId: Int!, $cursor: String) {
+      query ($cursor: String) {
         actor {
           entitySearch(
-            query: "type = 'DASHBOARD' AND accountId = $accountId"
+            query: "type = 'DASHBOARD' AND accountId = ${parseInt(accountId, 10)}"
             options: { limit: 200 }
           ) {
             results(cursor: $cursor) {
@@ -173,7 +176,7 @@ export class NewRelicClient {
     while (hasMore) {
       const data: DashboardQueryResult = await this.query<DashboardQueryResult>(
         query,
-        { accountId: parseInt(accountId, 10), cursor }
+        { cursor }
       );
 
       const searchResults = data.actor.entitySearch.results;
@@ -217,18 +220,12 @@ export class NewRelicClient {
                 widgets {
                   id
                   title
-                  configuration
                   rawConfiguration
                 }
               }
               variables {
                 name
                 type
-                defaultValues
-                items {
-                  value
-                  title
-                }
                 nrqlQuery {
                   accountIds
                   query
